@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 攝影巔峰版：舊金山 + Yosemite + 1號公路</title>
+    
+    <!-- CSS & Map dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+    <style>
+        :root {
+            --d2-color: #dc2626; --d3-color: #16a34a; --d4-color: #2563eb;
+            --d5-color: #9333ea; --d6-color: #ea580c;
+        }
+        html { scroll-behavior: auto; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+
+        /* Links & UI */
+        .map-link { color: #2563eb !important; text-decoration: underline !important; font-weight: 800; cursor: pointer; }
+        .web-link { color: #16a34a !important; text-decoration: underline !important; font-weight: 800; }
+        .tip-box { background-color: #fefce8; border: 2px solid #fb923c; padding: 1.25rem; border-radius: 0.5rem; margin: 0.75rem 0; font-size: 0.95rem; line-height: 1.6; }
+        
+        /* Timeline Alignment */
+        .timeline-time { min-width: 145px; flex-shrink: 0; font-weight: 800; color: #0f172a; border-right: 4px solid #cbd5e1; margin-right: 1.5rem; padding: 0.25rem 0; }
+        .timeline-content { width: 100%; padding-bottom: 2.5rem; }
+        .timeline-item { display: flex; align-items: flex-start; }
+
+        /* Map Integration */
+        #map { height: 65vh; width: 100%; border-radius: 1rem; border: 4px solid white; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); z-index: 10; }
+        .leaflet-routing-container { display: none !important; }
+        .poi-trigger { cursor: pointer; transition: 0.2s; border-bottom: 1px dashed #2563eb; }
+        .poi-trigger:hover { background-color: #dbeafe; }
+
+        @media (max-width: 640px) { .timeline-time { min-width: 100px; font-size: 0.8rem; } #map { height: 50vh; } }
+    </style>
+</head>
+<body class="text-slate-900">
+
+    <!-- Header -->
+    <header class="bg-slate-950 text-white py-12 px-6 shadow-2xl">
+        <div class="max-w-6xl mx-auto text-center md:text-left">
+            <h1 class="text-4xl font-black mb-6 italic uppercase tracking-tighter">🗓️ 2026 攝影巔峰版行程表</h1>
+            <p class="text-orange-500 font-bold tracking-widest mb-8">舊金山 + YOSEMITE + 1 號公路 (4/01–4/07)</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+                    <p class="text-slate-400 text-xs uppercase mb-1">Arrival 去程</p>
+                    <p class="text-2xl font-bold">4/01 (三) 19:55 抵達 SFO</p>
+                </div>
+                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+                    <p class="text-slate-400 text-xs uppercase mb-1">Departure 回程</p>
+                    <p class="text-2xl font-bold">4/07 (二) 01:05 起飛 SFO</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 bg-white/95 backdrop-blur shadow-md z-[2000] border-b">
+        <div class="max-w-6xl mx-auto flex overflow-x-auto whitespace-nowrap px-4 py-4 space-x-10 text-sm font-black uppercase tracking-tight">
+            <a href="#map-area" class="text-blue-600">🗺️ 實路交互地圖</a>
+            <a href="#accommodations" class="hover:text-blue-600">🏠 住宿</a>
+            <a href="#day1" class="hover:text-blue-600">D1</a><a href="#day2" class="hover:text-blue-600">D2</a>
+            <a href="#day3" class="hover:text-blue-600">D3</a><a href="#day4" class="hover:text-blue-600">D4</a>
+            <a href="#day5" class="hover:text-blue-600">D5</a><a href="#day6" class="hover:text-blue-600">D6</a>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-10">
+
+        <!-- Map Control Center -->
+        <section id="map-area" class="mb-20">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
+                <div>
+                    <h2 class="text-3xl font-black tracking-tighter uppercase">實路動線導航系統</h2>
+                    <p class="text-slate-500 text-sm italic">點擊按鈕切換每日精確道路軌跡，點擊行程文字可快速定位。</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="TravelApp.showDay(2)" class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-black shadow-lg hover:bg-red-700 transition">DAY 2</button>
+                    <button onclick="TravelApp.showDay(3)" class="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-black shadow-lg hover:bg-green-700 transition">DAY 3</button>
+                    <button onclick="TravelApp.showDay(4)" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black shadow-lg hover:bg-blue-700 transition">DAY 4</button>
+                    <button onclick="TravelApp.showDay(5)" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-black shadow-lg hover:bg-purple-700 transition">DAY 5</button>
+                    <button onclick="TravelApp.showDay(6)" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-black shadow-lg hover:bg-orange-700 transition">DAY 6</button>
+                    <button onclick="TravelApp.showAllMarkers()" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-black shadow-lg hover:bg-slate-700 transition">ALL</button>
+                </div>
+            </div>
+            <div id="map"></div>
+        </section>
+
+        <!-- Accommodation Cards -->
+        <section id="accommodations" class="mb-20">
+            <h2 class="text-3xl font-black mb-8 border-l-8 border-slate-950 pl-4 uppercase tracking-tighter">🏠 住宿安排</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Each card as a separate entity as requested -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-slate-400">
+                    <p class="text-slate-400 font-bold text-xs uppercase">Night 1 (4/01)</p>
+                    <h3 class="text-lg font-bold mt-2 mb-4">Hotel Aluxor SFO</h3>
+                    <a href="https://www.google.com/maps/search/?api=1&query=Hotel+Aluxor+SFO" class="map-link block text-sm mb-1">📍 Google 地圖</a>
+                    <a href="https://www.hotelaluxorsfo.com/" class="web-link block text-sm">🌐 官方網站</a>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-emerald-600">
+                    <p class="text-slate-400 font-bold text-xs uppercase">Night 2 (4/02)</p>
+                    <h3 class="text-lg font-bold mt-2 mb-4">Yosemite Cedar Lodge</h3>
+                    <a href="https://www.google.com/maps/search/?api=1&query=Yosemite+Cedar+Lodge" class="map-link block text-sm mb-1">📍 Google 地圖</a>
+                    <a href="https://www.yosemitecedarlodge.com/" class="web-link block text-sm">🌐 官方網站</a>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-emerald-600">
+                    <p class="text-slate-400 font-bold text-xs uppercase">Night 3 (4/03)</p>
+                    <h3 class="text-lg font-bold mt-2 mb-4">Yosemite Cedar Lodge</h3>
+                    <a href="https://www.google.com/maps/search/?api=1&query=Yosemite+Cedar+Lodge" class="map-link block text-sm mb-1">📍 Google 地圖</a>
+                    <a href="https://www.yosemitecedarlodge.com/" class="web-link block text-sm">🌐 官方網站</a>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-blue-600">
+                    <p class="text-slate-400 font-bold text-xs uppercase">Night 4 (4/04)</p>
+                    <h3 class="text-lg font-bold mt-2 mb-4">Lone Oak Lodge (Monterey)</h3>
+                    <a href="https://www.google.com/maps/search/?api=1&query=Lone+Oak+Lodge+Monterey" class="map-link block text-sm mb-1">📍 Google 地圖</a>
+                    <a href="https://www.loneoaklodge.com/" class="web-link block text-sm">🌐 官方網站</a>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-purple-600">
+                    <p class="text-slate-400 font-bold text-xs uppercase">Night 5 (4/05)</p>
+                    <h3 class="text-lg font-bold mt-2 mb-4">Samesun San Francisco</h3>
+                    <a href="https://www.google.com/maps/search/?api=1&query=Samesun+San+Francisco" class="map-link block text-sm mb-1">📍 Google 地圖</a>
+                    <a href="https://samesun.com/backpackers-hostels/san-francisco/" class="web-link block text-sm">🌐 官方網站</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Itinerary: Content preserved exactly as provided -->
+        <section class="space-y-16">
+            
+            <div id="day1">
+                <h2 class="text-2xl font-black bg-slate-900 text-white px-8 py-5 rounded-t-2xl shadow-lg tracking-tighter">✅ Day 1｜4/01（三）抵達舊金山 ➔ 入住休息</h2>
+                <div class="bg-white p-8 rounded-b-2xl border border-slate-200 shadow-sm">
+                    <div class="timeline-item"><div class="timeline-time">19:55–20:45</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('sfo')">SFO</span> 入境、領行李。 <a href="https://www.google.com/maps/search/?api=1&query=SFO+Airport" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">21:00–21:30</div><div class="timeline-content">前往飯店</div></div>
+                    <div class="timeline-item"><div class="timeline-time">21:30–22:30</div><div class="timeline-content">飯店 Check-in 並休息</div></div>
+                    <div class="timeline-item"><div class="timeline-time">🏨 住宿</div><div class="timeline-content font-bold underline">Hotel Aluxor SFO <a href="https://www.google.com/maps/search/?api=1&query=Hotel+Aluxor+SFO" class="map-link">📍地圖</a></div></div>
+                </div>
+            </div>
+
+            <div id="day2">
+                <h2 class="text-2xl font-black bg-slate-900 text-white px-8 py-5 rounded-t-2xl shadow-lg tracking-tighter">✅ Day 2｜4/02（四）Merced 補給 ➔ 進山大景</h2>
+                <div class="bg-white p-8 rounded-b-2xl border border-slate-200 shadow-sm">
+                    <div class="timeline-item"><div class="timeline-time">07:30–08:30</div><div class="timeline-content">飯店出發，回 <span class="poi-trigger" onclick="TravelApp.focusPOI('rental')">SFO 租車中心</span> 取車。 <a href="https://www.google.com/maps/search/?api=1&query=SFO+Rental+Car+Center" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">08:30–11:00</div><div class="timeline-content">驅車前往 <span class="poi-trigger" onclick="TravelApp.focusPOI('merced_inout')">Merced</span>。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">11:00–12:30</div><div class="timeline-content">【速食 1：<a href="https://www.in-n-out.com/" class="web-link underline">In-N-Out Burger</a>】 午餐 + <span class="poi-trigger" onclick="TravelApp.focusPOI('merced_costco')">Costco</span> 採買 (水、高熱量零食)。 <a href="https://www.google.com/maps/search/?api=1&query=In-N-Out+Burger+Merced" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">12:30–14:30</div><div class="timeline-content">驅車進入優勝美地 (經 Hwy 140)。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">15:00–16:30</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('tunnel_view')">Tunnel View</span> 與 <span class="poi-trigger" onclick="TravelApp.focusPOI('valley_view')">Valley View</span> 攝影 (捕捉酋長岩與瀑布水量)。 <a href="https://www.google.com/maps/search/?api=1&query=Tunnel+View+Yosemite" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">17:00–18:00</div><div class="timeline-content">Check-in <span class="poi-trigger" onclick="TravelApp.focusPOI('el_portal')">El Portal</span>。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">20:00–21:30</div><div class="timeline-content">【攝影：<span class="poi-trigger" onclick="TravelApp.focusPOI('swinging_bridge')">Swinging Bridge</span> 星空】 (拍半圓丘倒影)。 <a href="https://www.google.com/maps/search/?api=1&query=Swinging+Bridge+Yosemite" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">🏨 住宿</div><div class="timeline-content font-bold underline">El Portal (Yosemite Cedar Lodge)。 <a href="https://www.yosemitecedarlodge.com/" class="web-link">🌐官網</a></div></div>
+                </div>
+            </div>
+
+            <div id="day3">
+                <h2 class="text-2xl font-black bg-slate-900 text-white px-8 py-5 rounded-t-2xl shadow-lg tracking-tighter">✅ Day 3｜4/03（五）極限健行 ➔ 谷地漫步 ➔ 巨岩近景</h2>
+                <div class="bg-white p-8 rounded-b-2xl border border-slate-200 shadow-sm">
+                    <div class="timeline-item"><div class="timeline-time">07:30–10:30</div><div class="timeline-content">【健行 1：<span class="poi-trigger" onclick="TravelApp.focusPOI('columbia')">Columbia Rock Trail</span>】 (俯瞰谷地)。 <a href="https://www.google.com/maps/search/?api=1&query=Columbia+Rock+Trail+Yosemite" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">11:00–12:30</div><div class="timeline-content">午餐 <span class="poi-trigger" onclick="TravelApp.focusPOI('degnans')">Degnan’s Kitchen</span>。 <a href="https://www.google.com/maps/search/?api=1&query=Degnans+Kitchen+Yosemite" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">12:30–14:00</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('lower_fall')">Lower Yosemite Fall</span> 攝影。 <a href="https://www.google.com/maps/search/?api=1&query=Lower+Yosemite+Fall" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">14:15–15:00</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('el_cap_meadow')">El Capitan Meadow</span> 攝影 (午後斜射光拍酋長岩)。 <a href="https://www.google.com/maps/search/?api=1&query=El+Capitan+Meadow" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">15:15–18:30</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('cooks')">Cook’s Meadow</span> ➔ <span class="poi-trigger" onclick="TravelApp.focusPOI('sentinel')">Sentinel Bridge</span> 夕陽。 <a href="https://www.google.com/maps/search/?api=1&query=Sentinel+Bridge+Yosemite" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">19:00</div><div class="timeline-content">晚餐</div></div>
+                    <div class="timeline-item"><div class="timeline-time">20:00–21:00</div><div class="timeline-content">El Capitan Meadow的草地好像也蠻適合晚上看星星</div></div>
+                    <div class="timeline-item"><div class="timeline-time">🏨 住宿</div><div class="timeline-content font-bold underline">El Portal (Yosemite Cedar Lodge)。</div></div>
+                </div>
+            </div>
+
+            <div id="day4">
+                <h2 class="text-2xl font-black bg-slate-900 text-white px-8 py-5 rounded-t-2xl shadow-lg tracking-tighter">✅ Day 4｜4/04（六）Mist Trail ➔ 轉場 17-Mile Drive 日落</h2>
+                <div class="bg-white p-8 rounded-b-2xl border border-slate-200 shadow-sm">
+                    <div class="timeline-item">
+                        <div class="timeline-time">06:30–10:30</div>
+                        <div class="timeline-content">【健行 2：<span class="poi-trigger" onclick="TravelApp.focusPOI('vernal')">Mist Trail</span>】 (到 Vernal Fall 就好,再上到Nevada Fall還要3小時，水量大，建議請穿防水)。 <a href="https://www.google.com/maps/search/?api=1&query=Vernal+Fall+Yosemite" class="map-link">📍地圖</a></div>
+                    </div>
+                    <div class="timeline-item"><div class="timeline-time">11:00–13:30</div><div class="timeline-content">離開 Yosemite ➔ 驅車抵達 <span class="poi-trigger" onclick="TravelApp.focusPOI('merced_inout')">Merced</span>。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">13:30–14:00</div><div class="timeline-content">Merced 小休 30 分鐘（買東西吃）。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">14:00–16:30</div><div class="timeline-content">驅車抵達 <span class="poi-trigger" onclick="TravelApp.focusPOI('monterey')">Monterey</span>（先不進飯店）。</div></div>
+                    <div class="timeline-item">
+                        <div class="timeline-time">17:00–19:35</div>
+                        <div class="timeline-content">
+                            【攝影：17-Mile Drive】<br>
+                            o 人氣景點: <span class="poi-trigger" onclick="TravelApp.focusPOI('spanish_bay')">Spanish Bay</span> / <span class="poi-trigger" onclick="TravelApp.focusPOI('bird_rock')">Bird Rock</span> (海鳥&海獅)/ <span class="poi-trigger" onclick="TravelApp.focusPOI('lone_cypress')">Lone Cypress</span> (經典孤柏) / <span class="poi-trigger" onclick="TravelApp.focusPOI('ghost_tree')">Ghost Tree</span> at Pescadero Point / <span class="poi-trigger" onclick="TravelApp.focusPOI('pebble_beach')">Pebble Beach</span> 19:00 等海岸日落。
+                        </div>
+                    </div>
+                    <div class="timeline-item"><div class="timeline-time">20:00–20:30</div><div class="timeline-content">【速食 2：<a href="https://www.chipotle.com/" class="web-link underline">Chipotle</a>】 晚餐。 <a href="https://www.google.com/maps/search/?api=1&query=Chipotle+Monterey" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">20:30–21:00</div><div class="timeline-content">住宿 Check-in。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">🏨 住宿</div><div class="timeline-content font-bold underline">Lone Oak Lodge (Monterey)。 <a href="https://www.loneoaklodge.com/" class="web-link">🌐官網</a></div></div>
+                </div>
+            </div>
+
+            <div id="day5">
+                <h2 class="text-2xl font-black bg-slate-900 text-white px-8 py-5 rounded-t-2xl shadow-lg tracking-tighter">✅ Day 5｜4/05（日）Point Lobos 藍色海岸 ➔ 舊金山</h2>
+                <div class="bg-white p-8 rounded-b-2xl border border-slate-200 shadow-sm">
+                    <div class="timeline-item"><div class="timeline-time">07:00–08:00</div><div class="timeline-content">【速食 3：<a href="https://www.carlsjr.com/" class="web-link underline">Carl's Jr.</a>】 早餐。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">08:10–08:40</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('lovers_point')">Lovers Point</span> (早晨順光海景)。 <a href="https://www.google.com/maps/search/?api=1&query=Lovers+Point+Park+Monterey" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">09:10–11:00</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('point_lobos')">Point Lobos</span> (<span class="poi-trigger" onclick="TravelApp.focusPOI('cypress_grove')">Cypress Grove</span> & <span class="poi-trigger" onclick="TravelApp.focusPOI('china_cove')">China Cove</span> 翡翠綠海水)。 <a href="https://www.google.com/maps/search/?api=1&query=Point+Lobos+State+Natural+Reserve" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">11:30–14:00</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('carmel')">Carmel 小鎮散步</span> (Ocean Ave 藝廊、童話風建築、海灘放空)。 <a href="https://www.google.com/maps/search/?api=1&query=Carmel-by-the-Sea+California" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">14:00–16:30</div><div class="timeline-content">離開 Carmel ➔ 驅車返回 <span class="poi-trigger" onclick="TravelApp.focusPOI('sfo')">SFO</span>。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">16:30–17:30</div><div class="timeline-content">SFO 還車 ➔ 前往市區。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">18:30–19:00</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('powell_cali')">California St & Powell St</span> 經典構圖 (拍叮叮車與海灣金門)。 <a href="https://www.google.com/maps/search/?api=1&query=37.792056,-122.409167" class="map-link font-black underline">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">19:00–19:30</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('columbus')">Columbus Tower</span> 復古建築街拍。 <a href="https://www.google.com/maps/search/?api=1&query=Columbus+Tower+SF" class="map-link font-black underline">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">19:45–21:00</div><div class="timeline-content">晚餐 <a href="https://tonyspizzanapoletana.com/" class="web-link underline">Tony’s Pizza Napoletana</a> (全美Top3 Pizza) <a href="https://www.google.com/maps/search/?api=1&query=Tonys+Pizza+Napoletana+SF" class="map-link font-black underline">📍地圖</a>。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">21:15–22:15</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('pier7')">Pier 7</span> 夜景 (拍金融區延伸天際線)。 <a href="https://www.google.com/maps/search/?api=1&query=Pier+7+San+Francisco" class="map-link font-black underline">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">🏨 住宿</div><div class="timeline-content font-bold underline">Samesun San Francisco。 <a href="https://samesun.com/backpackers-hostels/san-francisco/" class="web-link">🌐官網</a></div></div>
+                </div>
+            </div>
+
+            <div id="day6">
+                <h2 class="text-2xl font-black bg-slate-900 text-white px-8 py-5 rounded-t-2xl shadow-lg tracking-tighter">✅ Day 6｜4/06（一）金門大橋</h2>
+                <div class="bg-white p-8 rounded-b-2xl border border-slate-200 shadow-sm">
+                    <div class="timeline-item"><div class="timeline-time">09:30–11:00</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('palace_arts')">Palace of Fine Arts</span>。 <a href="https://www.google.com/maps/search/?api=1&query=Palace+of+Fine+Arts" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">11:00–11:45</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('lovers_lane')">Lovers’ Lane</span> 散步。 <a href="https://www.google.com/maps/search/?api=1&query=Lovers+Lane+Presidio" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">12:00–13:00</div><div class="timeline-content">【速食 4：<a href="https://www.shakeshack.com/" class="web-link underline">Shake Shack</a>】 午餐。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">14:00–15:30</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('crissy')">Crissy Field</span> 野餐 (仰望大橋，享受最後午後)。 <a href="https://www.google.com/maps/search/?api=1&query=Crissy+Field" class="map-link">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">15:45–17:30</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('fort_point')">Fort Point</span> ➔ <span class="poi-trigger" onclick="TravelApp.focusPOI('gg_overlook_precise')">Golden Gate Overlook</span>。 <a href="https://www.google.com/maps/search/?api=1&query=37.803917,-122.476667" class="map-link font-black underline">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">18:00–19:15</div><div class="timeline-content"><span class="poi-trigger" onclick="TravelApp.focusPOI('baker')">Baker Beach</span> 夕陽 (海灘、浪花與大橋)。 <a href="https://www.google.com/maps/search/?api=1&query=Baker+Beach+SF" class="map-link font-black underline">📍地圖</a></div></div>
+                    <div class="timeline-item"><div class="timeline-time">19:30–21:00</div><div class="timeline-content">市區最後補買/晚餐 (速食5：<span class="poi-trigger" onclick="TravelApp.focusPOI('super_duper')">Super Duper</span>)。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">21:00–21:45</div><div class="timeline-content">搭乘 BART 或 Uber 前往 <span class="poi-trigger" onclick="TravelApp.focusPOI('sfo')">SFO</span>。</div></div>
+                    <div class="timeline-item"><div class="timeline-time">22:00–01:05</div><div class="timeline-content">辦理報到、機場巡禮。</div></div>
+                    <div class="timeline-item"><div class="timeline-time text-red-600 font-black italic underline">4/07 01:05</div><div class="timeline-content font-black text-red-600">班機返台。</div></div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <footer class="bg-slate-950 text-white text-center py-16">
+        <p class="opacity-40 italic font-bold uppercase tracking-widest">2026 San Francisco & Yosemite & Hwy 1 - Final Plan</p>
+    </footer>
+
+    <!-- Logic Script -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+    <script>
+        const TravelApp = {
+            map: null,
+            routeControl: null,
+            markerLayer: null,
+            
+            points: {
+                sfo: { c: [37.6213, -122.3790], l: "SFO Airport", d: 1 },
+                aluxor: { c: [37.6042, -122.3848], l: "Hotel Aluxor", d: 1 },
+                rental: { c: [37.6231, -122.3921], l: "Rental Center", d: 2 },
+                merced_inout: { c: [37.3022, -120.4830], l: "Merced In-N-Out", d: 2 },
+                merced_costco: { c: [37.3061, -120.4735], l: "Costco Merced", d: 2 },
+                tunnel_view: { c: [37.7156, -119.6774], l: "Tunnel View", d: 2 },
+                valley_view: { c: [37.7174, -119.6617], l: "Valley View", d: 2 },
+                el_portal: { c: [37.6749, -119.7839], l: "Cedar Lodge", d: 2 },
+                swinging_bridge: { c: [37.7410, -119.5980], l: "Swinging Bridge", d: 2 },
+                camp4: { c: [37.7420, -119.6020], l: "Camp 4 Parking", d: 3 },
+                columbia: { c: [37.7512, -119.6042], l: "Columbia Rock", d: 3 },
+                yose_village: { c: [37.7485, -119.5872], l: "Yosemite Village", d: 3 },
+                degnans: { c: [37.7488, -119.5861], l: "Degnan's Kitchen", d: 3 },
+                lower_fall: { c: [37.7533, -119.5971], l: "Lower Fall", d: 3 },
+                el_cap_meadow: { c: [37.7230, -119.6360], l: "El Capitan Meadow", d: 3 },
+                cooks: { c: [37.7460, -119.5920], l: "Cook's Meadow", d: 3 },
+                sentinel: { c: [37.7444, -119.5866], l: "Sentinel Bridge", d: 3 },
+                vernal: { c: [37.7275, -119.5440], l: "Vernal Fall", d: 4 },
+                monterey: { c: [36.6002, -121.8947], l: "Monterey", d: 4 },
+                spanish_bay: { c: [36.6186, -121.9482], l: "Spanish Bay", d: 4 },
+                bird_rock: { c: [36.5912, -121.9615], l: "Bird Rock", d: 4 },
+                lone_cypress: { c: [36.5682, -121.9654], l: "Lone Cypress", d: 4 },
+                ghost_tree: { c: [36.5636, -121.9644], l: "Ghost Tree", d: 4 },
+                pebble_beach: { c: [36.5686, -121.9506], l: "Pebble Beach", d: 4 },
+                lone_oak: { c: [36.5985, -121.8685], l: "Lone Oak Lodge", d: 4 },
+                lovers_point: { c: [36.6253, -121.9168], l: "Lovers Point", d: 5 },
+                point_lobos: { c: [36.5235, -121.9424], l: "Point Lobos", d: 5 },
+                china_cove: { c: [36.5098, -121.9392], l: "China Cove", d: 5 },
+                cypress_grove: { c: [36.5220, -121.9500], l: "Cypress Grove", d: 5 },
+                carmel: { c: [36.5552, -121.9233], l: "Carmel-by-the-Sea", d: 5 },
+                powell_cali: { c: [37.792056, -122.409167], l: "Powell & Cali Crossing", d: 5 },
+                columbus: { c: [37.7958, -122.4056], l: "Columbus Tower", d: 5 },
+                tonys_pizza: { c: [37.8003, -122.4075], l: "Tony's Pizza", d: 5 },
+                pier7: { c: [37.7994, -122.3965], l: "Pier 7", d: 5 },
+                samesun: { c: [37.8015, -122.4245], l: "Samesun SF", d: 5 },
+                palace_arts: { c: [37.8029, -122.4484], l: "Palace of Fine Arts", d: 6 },
+                lovers_lane: { c: [37.7936, -122.4578], l: "Lovers' Lane", d: 6 },
+                crissy: { c: [37.8062, -122.4660], l: "Crissy Field", d: 6 },
+                fort_point: { c: [37.8105, -122.4770], l: "Fort Point", d: 6 },
+                gg_overlook_precise: { c: [37.803917, -122.476667], l: "GG Overlook", d: 6 },
+                baker: { c: [37.7936, -122.4836], l: "Baker Beach", d: 6 },
+                super_duper: { c: [37.8000, -122.4360], l: "Super Duper Burgers", d: 6 }
+            },
+
+            init() {
+                this.map = L.map('map', { scrollWheelZoom: false }).setView([37.5, -121.5], 8);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.map);
+                this.markerLayer = L.layerGroup().addTo(this.map);
+                this.showAllMarkers();
+            },
+
+            getDayColor(d) {
+                const colors = { 2: "#dc2626", 3: "#16a34a", 4: "#2563eb", 5: "#9333ea", 6: "#ea580c" };
+                return colors[d] || "#1e293b";
+            },
+
+            showDay(day) {
+                this.markerLayer.clearLayers();
+                if (this.routeControl) this.map.removeControl(this.routeControl);
+
+                const dayPoints = Object.entries(this.points)
+                    .filter(([k, p]) => p.d === day)
+                    .map(([k, p]) => ({ latLng: L.latLng(p.c), label: p.l }));
+
+                dayPoints.forEach(p => {
+                    L.circleMarker(p.latLng, { 
+                        radius: 8, fillColor: this.getDayColor(day), color: "#fff", weight: 2, fillOpacity: 0.9 
+                    }).bindPopup(`<b>${p.label}</b>`).addTo(this.markerLayer);
+                });
+
+                const waypoints = dayPoints.map(p => p.latLng);
+                this.routeControl = L.Routing.control({
+                    waypoints: waypoints,
+                    lineOptions: { styles: [{ color: this.getDayColor(day), opacity: 0.7, weight: 6 }] },
+                    createMarker: () => null,
+                    addWaypoints: false,
+                    routeWhileDragging: false,
+                    useZoomParameter: false
+                }).addTo(this.map);
+
+                // Fallback Polyline for stability
+                L.polyline(waypoints, { color: this.getDayColor(day), weight: 2, dashArray: '5, 5', opacity: 0.5 }).addTo(this.markerLayer);
+                this.map.fitBounds(L.latLngBounds(waypoints), { padding: [50, 50] });
+            },
+
+            showAllMarkers() {
+                this.markerLayer.clearLayers();
+                if (this.routeControl) this.map.removeControl(this.routeControl);
+                Object.values(this.points).forEach(p => {
+                    L.circleMarker(p.c, { 
+                        radius: 6, fillColor: this.getDayColor(p.d), color: "#fff", weight: 1, fillOpacity: 0.8 
+                    }).bindPopup(`<b>${p.l}</b> (Day ${p.d})`).addTo(this.markerLayer);
+                });
+            },
+
+            focusPOI(key) {
+                const pt = this.points[key];
+                if (pt) {
+                    const navHeight = document.querySelector('nav').offsetHeight;
+                    window.scrollTo({ top: document.getElementById('map-area').offsetTop - navHeight, behavior: 'auto' });
+                    this.map.flyTo(pt.c, 16, { duration: 1.5 });
+                    setTimeout(() => {
+                        L.popup().setLatLng(pt.c).setContent(`<b>${pt.l}</b>`).openOn(this.map);
+                    }, 1600);
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => TravelApp.init());
+    </script>
+</body>
+</html>
